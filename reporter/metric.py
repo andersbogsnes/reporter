@@ -1,86 +1,79 @@
-# TODO Get classification report, confusion matrix into HTML
+import pathlib
 
+from bokeh.embed import components
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-from bokeh.plotting import figure
-from bokeh.embed import components
-from bokeh.io import output_file, show
-from bokeh.models import ColumnDataSource, LinearColorMapper, LabelSet, HoverTool
-import pandas as pd
-import numpy as np
-from reporter.colors import COLORS
-from bokeh.transform import transform
 from jinja2 import Environment, PackageLoader
+from bokeh.resources import INLINE
 
-env = Environment(loader=PackageLoader('reporter', 'template'))
-
-
-def generate_confusion_matrix_data(model, x, y, labels=None):
-    labels = np.unique(y) if labels is None else labels
-
-    y_pred = model.predict(x)
-    matrix = confusion_matrix(y, y_pred)
-    matrix = pd.DataFrame(matrix, index=labels, columns=labels)
-    matrix.index.name = 'Predicted'
-    matrix.columns.name = 'Actual'
-    return pd.DataFrame(matrix.stack(), columns=['value']).reset_index()
+from reporter.settings import COLOR_SCHEME, REPORT_PATH
+from reporter.metrics.confusion_matrix import ConfusionMatrix
+from reporter.metrics.classification_report import ClassificationReport
+import numpy as np
+DEFAULT_SIZE = 400
 
 
-def draw_heatmap(matrix, labels, index_label='Predicted', column_label='Actual', value_label='value', size=400):
-    min_val, max_val = matrix[value_label].min(), matrix[value_label].max()
-    source = ColumnDataSource(matrix)
-    mapper = LinearColorMapper(palette=COLORS, low=min_val, high=max_val)
-    hover = HoverTool(tooltips=[
-        ('Number', f"@{value_label}")
-    ])
+class Model:
+    def __init__(self, model, x, y, labels=None):
+        self.model = model
+        self.x = x
+        self.y = y
+        self.labels = np.unique(y) if labels is None else labels
+        self.y_pred = model.predict(x)
+        self.y_proba = None
+        self.name = model.__class__.__name__
 
-    p = figure(plot_width=size,
-               plot_height=size,
-               title='Confusion Matrix',
-               tools=[hover],
-               toolbar_location=None,
-               x_range=labels,
-               y_range=list(reversed(labels)))
-
-    p.yaxis.axis_label = index_label
-    p.xaxis.axis_label = column_label
-
-    p.rect(x=column_label,
-           y=index_label,
-           width=1,
-           height=1,
-           source=source,
-           fill_color=transform(value_label, mapper))
-
-    return p
+        if hasattr(model, 'pred_proba'):
+            self.y_proba = model.pred_proba(x)
 
 
-def create_confusion_matrix(model, x, y, labels=None):
-    matrix = generate_confusion_matrix_data(model, x, y, labels)
-    return draw_heatmap(matrix, labels)
+class Render:
+    def __init__(self, model, metrics=None):
+        self.env = Environment(loader=PackageLoader('reporter', 'template'))
+        self.model = model
+        self.metrics = self.init_metrics(metrics)
 
+    def init_metrics(self, metrics):
+        if metrics is None:
+            raise ValueError("Must pass metrics")
+        for metric in metrics:
+            metric.init_model(self.model)
+        return metrics
 
-def generate_classification_report_data(model, x, y, labels=None):
-    y_pred = model.predict(x)
-    params = precision_recall_fscore_support(y, y_pred)
-    param_names = ['precision', 'recall', 'f1-score', 'support']
-    return pd.DataFrame(params, index=param_names, columns=labels).T
+    def create_bokeh_html(self):
+        plot_metrics = [metric for metric in self.metrics if metric.plot]
+        plots = [metric.plot for metric in plot_metrics]
+        script, htmls = components(plots)
+        for metric, html in zip(plot_metrics, htmls):
+            metric.add_html(html)
+        return script
 
+    def render_html(self):
+        js = INLINE.render_js()
+        css = INLINE.render_css()
+        script = self.create_bokeh_html()
+        metrics = [metric.components for metric in self.metrics]
+        template = self.env.get_template('report.html')
+        html = template.render(metrics=metrics,
+                               css=css,
+                               js=js,
+                               script=script,
+                               name=model.name,
+                               color_scheme=COLOR_SCHEME)
+        self.write_html(html)
 
+    def write_html(self, html):
+        current_path = pathlib.Path(REPORT_PATH).joinpath('report')
+        if not current_path.exists():
+            current_path.mkdir()
 
-def render_report_html(model, x, y, labels, confusion_matrix=True):
-    template_components = {}
-    if confusion_matrix:
-        conf_p = create_confusion_matrix(model, x, y, labels)
-        script_confusion, div_confusion = components(conf_p)
-        template_components['script_confusion'] = script_confusion
-        template_components['div_confusion'] = div_confusion
+        current_path.joinpath('Report.html').write_text(html)
 
-    template = env.get_template('report.html')
-    html = template.render(**template_components)
-    with open('new_report.html', 'w') as f:
-        f.write(html)
+    @classmethod
+    def from_model(cls, model, x, y, labels=None):
+        metrics = [ClassificationReport, ConfusionMatrix]
+        model = Model(model, x, y, labels)
+        return cls(model, metrics)
 
 
 if __name__ == '__main__':
@@ -89,5 +82,9 @@ if __name__ == '__main__':
     clf.fit(X, y)
 
     labels = ['setosa', 'virginica', 'versace']
+    model = Model(clf, X, y, labels)
+    cr = ClassificationReport()
+    cr.add_text('This is a test')
+    metrics = [cr, ConfusionMatrix()]
 
-    render_report_html(clf, X, y, ['setosa', 'versicolor', 'virginica'])
+    Render(model, metrics).render_html()

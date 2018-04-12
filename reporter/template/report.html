@@ -2,15 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Title</title>
-  <link rel="stylesheet" href="http://cdn.pydata.org/bokeh/release/bokeh-0.12.15.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.6.2/css/bulma.min.css"/>
+  {{ js }}
+  {{ css }}
+  {{ script }}
 </head>
 <body>
-  <div id="confusion-matrix">
-    {{ div_confusion | safe }}
-
+<section class="hero">
+  <div class="hero-body is-primary">
+    <h1 class="title">
+      Model report for {{ name }}
+    </h1>
   </div>
-  <script src="http://cdn.pydata.org/bokeh/release/bokeh-0.12.15.min.js"></script>
-      {{ script_confusion | safe }}
+</section>
+<section class="section">
+  <div class="container">
+    {% for metric in metrics %}
+      <div id="{{ metric.name }}" class="graph columns">
+        {{ metric.html | safe }}
+      </div>
+
+      {% if metric.text %}
+        <div class="graph-comment columns">
+          {{ metric.text }}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+</section>
 </body>
+<style>
+  .is-primary {
+    background-color: {{ color_scheme.PRIMARY }};
+  }
+  h1.title {
+    color: white;
+  }
+</style>
 </html>
