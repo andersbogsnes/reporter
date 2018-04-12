@@ -1,3 +1,7 @@
+from reporter.metrics.classification_report import ClassificationReport
+from reporter.metrics.confusion_matrix import ConfusionMatrix
+
+
 class Metric:
     def __init__(self, name):
         self.model = None
