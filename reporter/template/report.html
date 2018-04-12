@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <link rel="stylesheet" href="http://cdn.pydata.org/bokeh/release/bokeh-0.12.15.min.css">
+</head>
+<body>
+  <div id="confusion-matrix">
+    {{ div_confusion | safe }}
+
+  </div>
+  <script src="http://cdn.pydata.org/bokeh/release/bokeh-0.12.15.min.js"></script>
+      {{ script_confusion | safe }}
+</body>
+</html>
