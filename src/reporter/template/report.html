@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Title</title>
+    <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+    {{ js }}
+    {{ css }}
+</head>
+<body>
+<section class="hero">
+    <div class="hero-body is-primary">
+        <h1 class="title">
+            Model report for {{ name }}
+        </h1>
+    </div>
+</section>
+<section class="section">
+    <div class="container">
+        <div class="grid is-col-min-2">
+
+        </div>
+        {% for metric in metrics %}
+        <div class="cell">
+            <div id="{{ metric.name }}" class="graph">
+                {{ metric.html | safe }}
+                {% if metric.text %}
+                <div class="graph-comment">
+                    {{ metric.text }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% endfor %}
+    </div>
+
+</section>
+    {{ script }}
+</body>
+<style>
+    .is-primary {
+        background-color: {{ color_scheme.PRIMARY }};
+    }
+
+    h1.title {
+        color: white;
+    }
+</style>
+</html>

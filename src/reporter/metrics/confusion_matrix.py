@@ -1,19 +1,22 @@
+import attrs
 import pandas as pd
 from bokeh.models import ColumnDataSource, LinearColorMapper, HoverTool
 from bokeh.plotting import figure
 from bokeh.transform import transform
 from sklearn.metrics import confusion_matrix
+
+from reporter.model import Model
 from reporter.settings import COLORS
-from reporter.metrics import Metric
 
 
-class ConfusionMatrix(Metric):
-    def __init__(self):
-        super().__init__('confusion-matrix')
+@attrs.define
+class ConfusionMatrix:
+    model: Model
+    name: str = "Confusion Matrix"
 
-    def generate_data(self):
-        matrix = confusion_matrix(self.y, self.y_pred)
-        matrix = pd.DataFrame(matrix, index=self.labels, columns=self.labels)
+    def calculate(self):
+        matrix = confusion_matrix(self.model.y, self.model.y_pred)
+        matrix = pd.DataFrame(matrix, index=self.model.labels, columns=self.model.labels)
         matrix.index.name = 'Predicted'
         matrix.columns.name = 'Actual'
         return pd.DataFrame(matrix.stack(), columns=['Value']).reset_index()
@@ -22,7 +25,7 @@ class ConfusionMatrix(Metric):
         index_label = 'Predicted'
         column_label = 'Actual'
 
-        matrix = self.generate_data()
+        matrix = self.calculate()
         min_val, max_val = matrix.Value.min(), matrix.Value.max()
         source = ColumnDataSource(matrix)
         mapper = LinearColorMapper(palette=COLORS, low=min_val, high=max_val)
@@ -31,13 +34,13 @@ class ConfusionMatrix(Metric):
             ('Number', f"@Value")
         ])
 
-        p = figure(plot_width=size,
-                   plot_height=size,
+        p = figure(width=size,
+                   height=size,
                    title='Confusion Matrix',
                    tools=[hover],
                    toolbar_location=None,
-                   x_range=self.labels,
-                   y_range=list(reversed(self.labels)))
+                   x_range=self.model.labels,
+                   y_range=list(reversed(self.model.labels)))
 
         p.yaxis.axis_label = index_label
         p.xaxis.axis_label = column_label
@@ -48,5 +51,4 @@ class ConfusionMatrix(Metric):
                height=1,
                source=source,
                fill_color=transform('Value', mapper))
-        self.plot = p
         return p

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reporter"
+authors = [
+    { name = "Anders Bogsnes", email = "andersbogsnes@gmail.com" }
+]
+dynamic = ["version"]
+description = "A documentation generator for Scikit-learn-based machine learning models"
+license = { file = "LICENSE" }
+dependencies = [
+    "attrs",
+    "bokeh",
+    "scikit-learn",
+    "pandas",
+    "jinja2"
+]
+
+[project.optional-dependencies]
+dev = ['pytest']
